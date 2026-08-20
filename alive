@@ -1,0 +1,64 @@
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Root = Character:WaitForChild("HumanoidRootPart")
+
+local targetEnding = nil
+
+-- 1. Scan the server structural tree for objects triggering the "Win" cutscene or badge awards
+for _, v in pairs(workspace:GetDescendants()) do
+    if v:IsA("TouchTransmitter") or v.Name == "TouchInterest" then
+        local part = v.Parent
+        if part and part:IsA("BasePart") then
+            local partName = part.Name:lower()
+            local parentName = part.Parent and part.Parent.Name:lower() or ""
+            
+            -- Detect the explicit end flags assigned to Barry's Helicopter / Badge sequences
+            if partName:match("badge") or partName:match("win") or partName:match("heli") or partName:match("end") or parentName:match("heli") then
+                targetEnding = part
+                break
+            end
+        end
+    end
+end
+
+-- 2. Fallback scan if the trigger blocks are hidden inside secure local model folders
+if not targetEnding then
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("VehicleSeat") or v:IsA("Seat") then
+            if v.Name:lower():match("heli") or v.Parent.Name:lower():match("heli") then
+                targetEnding = v
+                break
+            end
+        elseif v:IsA("BasePart") and v.Name == "Escape" then
+            targetEnding = v
+            break
+        end
+    end
+end
+
+-- 3. Execution: If found, approach safely to allow StreamingEnabled physics engine to adapt
+if targetEnding then
+    print("Target acquired: " .. targetEnding:GetFullName())
+    
+    -- Teleport above the object's general zone first to force local rendering
+    Root.CFrame = CFrame.new(targetEnding.Position + Vector3.new(0, 50, 0))
+    task.wait(1) -- Time allowance for the asset to download onto your machine
+    
+    -- Snap directly into the functional touch zone to force completion
+    for i = 1, 3 do
+        Root.CFrame = targetEnding.CFrame + Vector3.new(0, 1, 0)
+        if targetEnding:IsA("Seat") or targetEnding:IsA("VehicleSeat") then
+            pcall(function()
+                targetEnding:Sit(Character:FindFirstChild("Humanoid"))
+            end)
+        end
+        task.wait(0.2)
+    end
+    print("Successfully teleported directly to the finale!")
+else
+    warn("Unable to find the end zone asset. Please make sure you are fully loaded past the entry lobby.")
+end
